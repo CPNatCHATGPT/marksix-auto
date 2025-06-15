@@ -1,0 +1,40 @@
+name: build-excel-daily
+on:
+  schedule:
+    # 16:15 UTC = 00:15 香港時間
+    - cron: '15 16 * * *'
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas requests openpyxl
+      - run: python fetch_and_build.py
+      - name: Commit & push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add marksix_last_200.*
+          if git diff --cached --quiet; then
+            echo "No change"
+          else
+            git commit -m "auto: update $(date -u +'%F %T')"
+            git push
+          fi
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - uses: actions/deploy-pages@v4
